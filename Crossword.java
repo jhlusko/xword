@@ -185,37 +185,40 @@ public class Crossword {
 	
 	public void addEntry(Entry e){
             for (int i = 0; i< e.wordGroup.words.get(0).length(); i++){
-                    Point point = new Point(e.point.x + i*((e.isHorizontal)?1:0) - e.offset*((e.isHorizontal)?1:0), e.point.y + i*((e.isHorizontal)?0:1) - e.offset*((e.isHorizontal)?0:1));
-                    String letterPair = "" + e.wordGroup.words.get(0).charAt(i) + e.wordGroup.words.get(1).charAt(i);
-                    squares.put(point, letterPair);
-                    if (rows.get(point.y) != null){
-                        rows.get(point.y).add(point); 
-                    } else {
-                        rows.put(point.y, new ArrayList<Point>(Arrays.asList(point)));
-                    }
-                    if (columns.get(point.x) != null){
-                        columns.get(point.x).add(point); 
-                    } else {
-                        columns.put(point.x, new ArrayList<Point>(Arrays.asList(point)));
-                    }
-
-                    if (point.x < xMin){
-                        xMin = point.x;
-                    }
-                    if (point.x > xMax){
-                        xMax = point.x;
-                    }
-                    if (point.y < yMin){
-                        yMin = point.y;
-                    }
-                    if (point.y > yMax){
-                        yMax = point.y;
-                    }
+                Point point = new Point(e.point.x + i*((e.isHorizontal)?1:0) - e.offset*((e.isHorizontal)?1:0), e.point.y + i*((e.isHorizontal)?0:1) - e.offset*((e.isHorizontal)?0:1));
+                String letterPair = "" + e.wordGroup.words.get(0).charAt(i) + e.wordGroup.words.get(1).charAt(i);
+                addSquare(point, letterPair);
             }
             entries.add(e);
             this.dictionary.remove(e.wordGroup);
-		
 	}
+
+        public void addSquare(Point point, String letterPair){
+            squares.put(point, letterPair);
+            if (rows.get(point.y) != null){
+                rows.get(point.y).add(point); 
+            } else {
+                rows.put(point.y, new ArrayList<Point>(Arrays.asList(point)));
+            }
+            if (columns.get(point.x) != null){
+                columns.get(point.x).add(point); 
+            } else {
+                columns.put(point.x, new ArrayList<Point>(Arrays.asList(point)));
+            }
+
+            if (point.x < xMin){
+                xMin = point.x;
+            }
+            if (point.x > xMax){
+                xMax = point.x;
+            }
+            if (point.y < yMin){
+                yMin = point.y;
+            }
+            if (point.y > yMax){
+                yMax = point.y;
+            }
+        }
 		
 	public void printOne(int num){
 		System.out.print("..");
@@ -430,19 +433,6 @@ public class Crossword {
 		
 	}
 
-
-	
-	public static void main(String[] args) throws IOException, ClassNotFoundException, Exception {
-            ArrayList<Clue> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
-            Crossword cw = new Crossword(wordPairs);
-            cw.buildIndex();
-            Clue initialWord = wordPairs.get((int)(Math.random()*wordPairs.size()));
-            cw.addEntry(new Entry(initialWord, new Point(0, 0), 0, true));
-            cw.buildPuzzle();
-            cw.display();
-
-	}
-
 	private void buildIndex() {
 		for (Clue clue:this.dictionary){
 			buildClueIndex(clue);
@@ -521,5 +511,18 @@ public class Crossword {
             throw new Exception();
         }
 //        System.out.println(second);
+    }
+    
+    
+	
+    public static void main(String[] args) throws IOException, ClassNotFoundException, Exception {
+        ArrayList<Clue> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
+        Crossword cw = new Crossword(wordPairs);
+        cw.buildIndex();
+        Clue initialWord = wordPairs.get((int)(Math.random()*wordPairs.size()));
+        cw.addEntry(new Entry(initialWord, new Point(0, 0), 0, true));
+        cw.buildPuzzle();
+        cw.display();
+
     }
 }
