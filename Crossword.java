@@ -32,6 +32,8 @@ import edu.mit.jwi.item.IWord;
 import edu.mit.jwi.item.POS;
 import edu.mit.jwi.item.Pointer;
 import java.util.HashSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Crossword {
 	
@@ -39,7 +41,9 @@ public class Crossword {
 	private static final int WORD_LENGTH = 11;
 	HashMap<String, LetterGroup> index;
 	HashMap<Point, String> squares;
-	HashMap<Integer, ArrayList<Point>> rows;
+        HashMap<Point, HashSet<LetterGroup>> candidates;
+        ArrayList<String> enders;
+        HashMap<Integer, ArrayList<Point>> rows;
 	HashMap<Integer, ArrayList<Point>> columns;
 	ArrayList<Entry> entries;
 	int xMin;
@@ -54,7 +58,9 @@ public class Crossword {
 		this.dictionary = wordPairs;
                 this.index = new HashMap<String, LetterGroup>();
 		this.squares = new HashMap<Point, String>();
-		this.rows = new HashMap<Integer, ArrayList<Point>>();
+		this.candidates = new HashMap<Point, HashSet<LetterGroup>>();
+                this.enders = new ArrayList<String>();
+                this.rows = new HashMap<Integer, ArrayList<Point>>();
 		this.columns = new HashMap<Integer, ArrayList<Point>>();
 		this.entries = new ArrayList<Entry>();
 		this.xMin = 0;
@@ -441,7 +447,7 @@ public class Crossword {
 
 	private void buildClueIndex(Clue clue) {
             //creates leaf
-            String fullName = "*" + clue.words.get(0) + "/" + clue.words.get(1) + "*";
+            String fullName = "*" + clue.words.get(0) + "*/*" + clue.words.get(1) + "*";
             LetterGroup leaf = new LetterGroup(fullName, clue);
             this.index.put(fullName, leaf);
             
@@ -469,48 +475,129 @@ public class Crossword {
                 + "/" + parts[1].substring(0, parts[1].length() - 1);
         String rightParentName = parts[0].substring(1, parts[0].length()) 
                 + "/" + parts[1].substring(1, parts[1].length());
-        HashSet<LetterGroup> kids = new HashSet<>();
-        kids.add(child);
         if (this.index.get(leftParentName) == null){
-            this.index.put(leftParentName, new LetterGroup(leftParentName, kids));
+            LetterGroup leftParent = new LetterGroup(leftParentName);
+            leftParent.rightKids.add(child);
+            this.index.put(leftParent.name, leftParent);
         }
         else{
-            this.index.get(leftParentName).kids.add(child);
+            this.index.get(leftParentName).rightKids.add(child);
         }
         build_tree(this.index.get(leftParentName));
         if (this.index.get(rightParentName) == null){
-            this.index.put(rightParentName, new LetterGroup(rightParentName, kids));
+            LetterGroup rightParent = new LetterGroup(rightParentName);
+            rightParent.leftKids.add(child);
+            this.index.put(rightParentName, rightParent);
         }
         else{
-            this.index.get(rightParentName).kids.add(child);
+            this.index.get(rightParentName).leftKids.add(child);
         }
         build_tree(this.index.get(rightParentName));
         
         
     }
 
-    private void buildPuzzle() throws Exception {
-        String firstLetters = this.squares.get(new Point(0, 0));
-        firstLetters = firstLetters.charAt(0) + "/" + firstLetters.charAt(1);
-        String second = this.squares.get(new Point(1, 0));
-        System.out.println("first letter: " + firstLetters);
-        LetterGroup first = this.index.get(firstLetters);
-        System.out.println("first letter's numWords: " + first.numWords);
-        LetterGroup topKid = first.topKid();
-        System.out.println("first letter's topKid: " + topKid.name);
-        //new letter at start
-        if (!(topKid.firstPair().equals(first.firstPair())) && (topKid.lastPair().equals(first.lastPair()))){
-            System.out.println("new letter at start");
+    private void buildPuzzle() {
+        //if first time, add candidates at (0,1), (1, 0)
+        if (this.candidates.size() == 0){
+            String firstLetters = this.squares.get(new Point(0, 0));
+            firstLetters = "*" + firstLetters.charAt(0) + "/*" + firstLetters.charAt(1);
+            this.candidates.put(new Point(1, 0), this.index.get(firstLetters).rightKids);
+            System.out.println(this.candidates.get(new Point(1, 0)).size() + " options at (1, 0)");
+
+            firstLetters = this.squares.get(new Point(1, 0));
+            firstLetters = firstLetters.charAt(0) + "/" + firstLetters.charAt(1);
+            HashSet<LetterGroup> options = new HashSet<LetterGroup>();
+            options.add(this.index.get(firstLetters));
+            this.candidates.put(new Point(0, 1), options);
+            System.out.println(this.candidates.get(new Point(0, 1)).size() + " options at (0, 1)");
         }
-        //new letter at end
-        else if ((topKid.firstPair().equals(first.firstPair())) && !(topKid.lastPair().equals(first.lastPair()))){
-            System.out.println("new letter at end");
+        //find lowest candidate in 0 column
+        int lowest = 0;
+        while (this.candidates.containsKey(new Point(0, lowest + 1))){
+            lowest++;
+        }
+        //create complement in first column
+        if (!this.candidates.containsKey(new Point(1, lowest))){
+            //find all letterPairs which could extend it vertically
+            HashSet<String> verticalPairs = new HashSet<String>();
+            for (LetterGroup parentOption: this.candidates.get(new Point(1, lowest - 1))){
+                for (LetterGroup currentOption: parentOption.rightKids){
+                    String[] parts = currentOption.name.split("/");
+                    verticalPairs.add(parts[0].charAt(parts[0].length() - 1) + "" + parts[1].charAt(parts[0].length() - 1));
+                }
+            }
+            //find the subset of matching letterPairs which could extend it horizontally, remove nonmatches
+            HashSet<String> intersectionPairs = new HashSet<String>();
+            for (LetterGroup parentOption: this.candidates.get(new Point(0, lowest))){
+                ArrayList<LetterGroup> markForDeletion = new ArrayList<>();
+                for (LetterGroup currentOption: parentOption.rightKids){
+                    String[] parts = currentOption.name.split("/");
+                    String letterPair = parts[0].charAt(parts[0].length() - 1) + "" + parts[1].charAt(parts[0].length() - 1);
+                    if(verticalPairs.contains(letterPair)){
+                            intersectionPairs.add(letterPair);
+                    }
+                    else{
+                        markForDeletion.add(currentOption);
+                    }
+                }
+                for (LetterGroup option: markForDeletion){
+                    parentOption.rightKids.remove(option);
+
+                }
+            }
+            
+            //build candidate
+            if(intersectionPairs.isEmpty()){
+                completePuzzle();
+            }
+            else{
+                boolean wordEnd = false;
+                HashSet<LetterGroup> options = new HashSet<>();
+                for (LetterGroup parentOption: this.candidates.get(new Point(1, lowest - 1))){
+                    for (LetterGroup currentOption: parentOption.rightKids){
+                        String[] parts = currentOption.name.split("/");
+                        String letterPair = parts[0].charAt(parts[0].length() - 1) + "" + parts[1].charAt(parts[0].length() - 1);
+                        if(intersectionPairs.contains(letterPair)){
+                            options.add(currentOption);
+                            for (LetterGroup child : currentOption.rightKids){
+                                if (child.name.endsWith("*")){
+                                    wordEnd = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                //check contains a wordend
+                if (!wordEnd){
+                    //roll back to previous ender
+                    rollback();
+                } else{
+                    //add to candidates
+                    this.candidates.put(new Point(1, lowest), options);
+                    System.out.println(this.candidates.get(new Point(1, lowest)).size() + " options at (1, " + lowest + ")");
+                    //refine complementary column
+                    System.out.println("Now only " + this.candidates.get(new Point(0, lowest)).size() + " options at (0, " + lowest + ")");
+                }
+            }
+            
+            
             
         }
-        else{
-            throw new Exception();
+        //create new lowest candidate
+        HashSet<LetterGroup> options = new HashSet<LetterGroup>();
+        for (LetterGroup parentOption: this.candidates.get(new Point(0, lowest))){
+            for (LetterGroup currentOption: parentOption.rightKids){
+                if (currentOption.name.endsWith("*")){
+                    this.enders.add(currentOption.name);
+                }
+                options.add(currentOption);
+            }
         }
-//        System.out.println(second);
+        this.candidates.put(new Point(0, lowest+1), options);
+        System.out.println(this.candidates.get(new Point(0, lowest+1)).size() + " options at (0, " + lowest+1 + ")");
+        
+        buildPuzzle();
     }
     
     
@@ -521,8 +608,17 @@ public class Crossword {
         cw.buildIndex();
         Clue initialWord = wordPairs.get((int)(Math.random()*wordPairs.size()));
         cw.addEntry(new Entry(initialWord, new Point(0, 0), 0, true));
-        cw.buildPuzzle();
         cw.display();
-
+        cw.buildPuzzle();
+        
     }
+
+    private void completePuzzle() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    private void rollback() {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
 }
