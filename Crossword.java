@@ -38,7 +38,7 @@ import java.util.logging.Logger;
 public class Crossword {
 	
 	
-	private static final int WORD_LENGTH = 6;
+	private static final int WORD_LENGTH = 5;
 	HashMap<String, LetterGroup> index;
 	HashMap<Point, String> squares;
         HashMap<Point, HashSet<LetterGroup>> candidates;
@@ -563,19 +563,8 @@ public class Crossword {
         
         buildPuzzle();
     }
-    
-    
-	
-    public static void main(String[] args) throws IOException, ClassNotFoundException, Exception {
-        ArrayList<Clue> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
-        Crossword cw = new Crossword(wordPairs);
-        cw.buildIndex();
-        cw.buildPuzzle();
-        
-    }
 
     private void completePuzzle() {
-        System.out.println("completePuzzle debug");
         //get workingRow
         int lowestFullRow = 0;
         while (this.candidates.containsKey(new Point(1, lowestFullRow + 1))){
@@ -583,34 +572,57 @@ public class Crossword {
         }
         //get word for (left) column 0, add it to puzzle
         Iterator<LetterGroup> iter = this.candidates.get(new Point(0, lowestFullRow)).iterator();
-        LetterGroup word = iter.next();
-        this.addEntry(new Entry(word.clue, new Point(0,0), 0, false));
-        
-        //find letterPair options for (right) column 1, from bottom to top
-        String leftLetterPair = this.squares.get(new Point(0, lowestFullRow));
-        LetterGroup leftLetterGroup = this.index.get(leftLetterPair.charAt(0) + "/" + leftLetterPair.charAt(1));
-        ArrayList<String> rightLetterList = new ArrayList<>();
-        for (LetterGroup child : leftLetterGroup.rightKids){
-            rightLetterList.add(child.lastLetters);
-        }
-        for (LetterGroup option: this.candidates.get(new Point(1, lowestFullRow))){
-            String[] parts = option.name.split("/");
-            String leftLetterPairFromOption = this.squares.get(new Point(0, lowestFullRow));
-            String rightLetterPairFromOption = parts[0].charAt(lowestFullRow) + "" + parts[1].charAt(lowestFullRow);
-            if (leftLetterPairFromOption.equals(leftLetterPair) && rightLetterList.contains(rightLetterPairFromOption)){
-                if (validOption(option, lowestFullRow - 1)){
-                    System.out.println(option.name);
-                    this.addEntry(new Entry(option.clue, new Point(0,lowestFullRow), lowestFullRow, false));
-                    break;
+        while (iter.hasNext()){
+            LetterGroup word = iter.next();
+            this.clear();
+            this.addEntry(new Entry(word.clue, new Point(0,0), 0, false));
+
+            //find letterPair options for (right) column 1, from bottom to top
+            String leftLetterPair = this.squares.get(new Point(0, lowestFullRow));
+            LetterGroup leftLetterGroup = this.index.get(leftLetterPair.charAt(0) + "/" + leftLetterPair.charAt(1));
+            ArrayList<String> rightLetterList = new ArrayList<>();
+            for (LetterGroup child : leftLetterGroup.rightKids){
+                rightLetterList.add(child.lastLetters);
+            }
+            for (LetterGroup option: this.candidates.get(new Point(1, lowestFullRow))){
+                String[] parts = option.name.replace("*", "").split("/");
+                String rightLetterPairFromOption = parts[0].charAt(lowestFullRow) + "" + parts[1].charAt(lowestFullRow);
+                if (rightLetterList.contains(rightLetterPairFromOption)){
+                    if (option == this.index.get("*SWAG*/*LOOT*")){
+                        System.out.println("debug");
+                    }
+                    if (validOption(option, lowestFullRow - 1)){
+                        this.addEntry(new Entry(option.clue, new Point(1,lowestFullRow), lowestFullRow, false));
+                        break;
+                    }
                 }
             }
+            if (this.entries.size() > 1){
+                break;
+            }
         }
-
-        
-//        if (lowestFullRow % 2 == 1){
-//
-//        }
-        
+        int workingRow = 0;
+        while (workingRow <= lowestFullRow){
+            if (workingRow % 2 == 0){
+                LetterGroup word = this.index.get("*" + this.squares.get(new Point(0, workingRow)).charAt(0) + 
+                    this.squares.get(new Point(1, workingRow)).charAt(0) + "/*" +
+                    this.squares.get(new Point(0, workingRow)).charAt(1) + 
+                    this.squares.get(new Point(1, workingRow)).charAt(1));
+                if (word != null){
+                    this.addEntry(new Entry(word.clue, new Point(0, workingRow), 0, true));
+                }
+            }
+            else{
+                LetterGroup word = this.index.get(this.squares.get(new Point(0, workingRow)).charAt(0) + 
+                    this.squares.get(new Point(1, workingRow)).charAt(0) + "*/" +
+                    this.squares.get(new Point(0, workingRow)).charAt(1) + 
+                    this.squares.get(new Point(1, workingRow)).charAt(1) + "*");
+                if (word != null){
+                    this.addEntry(new Entry(word.clue, new Point(1, workingRow), word.name.length(), true));
+                }
+            }
+            workingRow++;
+        }
         this.display();
     }
 
@@ -645,7 +657,7 @@ public class Crossword {
             for (LetterGroup child : leftLetterGroup.rightKids){
                 rightLetterList.add(child.lastLetters);
             }
-            String[] parts = option.name.split("/");
+            String[] parts = option.name.replace("*", "").split("/");
             String rightLetterPair = parts[0].charAt(row) + "" + parts[1].charAt(row);
             if (!rightLetterList.contains(rightLetterPair)){
                 return false;
@@ -653,6 +665,30 @@ public class Crossword {
             row--;
         }
         return true;
+    }
+
+    private void clear() {
+        this.squares = new HashMap<Point, String>();
+        this.rows = new HashMap<Integer, ArrayList<Point>>();
+        this.columns = new HashMap<Integer, ArrayList<Point>>();
+        this.entries = new ArrayList<Entry>();
+        this.xMin = 0;
+        this.xMax = 0;
+        this.yMin = 0;
+        this.yMax = 0;
+    }
+
+    
+        public static void main(String[] args) throws IOException, ClassNotFoundException, Exception {
+        ArrayList<Clue> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
+        Crossword cw = new Crossword(wordPairs);
+        cw.buildIndex();
+        cw.buildPuzzle();
+
+//        LetterGroup word = cw.index.get("B/P");
+//        System.out.println(word.name);
+//        System.out.println(word.clue.words.get(0) + "/" + word.clue.words.get(1));
+        
     }
 
 }

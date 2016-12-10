@@ -8,14 +8,9 @@ public class Test {
 
 	public static void main(String[] args) {
 	
-            HashSet<String> orig = new HashSet<String>();
-            orig.add("test");
-            HashSet<String> clone = orig;//new HashSet<String>(orig);
-            System.out.println("orig contains test: " + orig.contains("test"));
-            System.out.println("clone contains test: " + clone.contains("test"));
-            orig.remove("test");
-            System.out.println("orig contains test: " + orig.contains("test"));
-            System.out.println("clone contains test: " + clone.contains("test"));
+            String test = "0123";
+            System.out.println("test.charAt(0): " + test.charAt(0));
+            System.out.println("test.charAt(1): " + test.charAt(1));
             
 		
 	}
