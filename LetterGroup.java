@@ -12,22 +12,22 @@ public class LetterGroup {
     public HashSet<LetterGroup> leftKids;
     public HashSet<LetterGroup> rightKids;
     public int numWords;
-    private Clue clue;
+    public Clue clue;
+    public String lastLetters;
 
-    public LetterGroup(String name){
-            this.name = name;
-            this.leftKids = new HashSet<LetterGroup>();
-            this.rightKids = new HashSet<LetterGroup>();
-            this.numWords = 0;
-            this.clue = null;
+    
+    public LetterGroup(String name, Clue clue){
+        this.name = name;
+        this.leftKids = new HashSet<LetterGroup>();
+        this.rightKids = new HashSet<LetterGroup>();
+        this.numWords = 0;
+        this.clue = clue;
+        this.lastLetters = lastLetters();
     }
 
-    public LetterGroup(String name, Clue clue){
-            this.name = name;
-            this.leftKids = new HashSet<LetterGroup>();
-            this.rightKids = new HashSet<LetterGroup>();
-            this.numWords = 0;
-            this.clue = clue;
+    private String lastLetters() {
+        String[] parts = this.name.split("/");
+        return parts[0].charAt(parts[0].length() - 1) + "" + parts[1].charAt(parts[0].length() - 1);
     }
 
  
