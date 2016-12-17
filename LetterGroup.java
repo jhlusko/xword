@@ -26,8 +26,42 @@ public class LetterGroup {
     }
 
     private String lastLetters() {
+        //no "/"
         String[] parts = this.name.split("/");
         return parts[0].charAt(parts[0].length() - 1) + "" + parts[1].charAt(parts[0].length() - 1);
+    }
+    
+    public String getLetterPairAt(int index, boolean starred, boolean slash){
+        if (starred){
+            String[] parts = this.name.split("/");
+            return parts[0].charAt(index) + "/" + parts[1].charAt(index);
+        }
+        else{
+            String[] parts = this.name.replace("*", "").split("/");
+            if (slash){
+                return parts[0].charAt(index) + "/" + parts[1].charAt(index);
+            }
+            else{
+                return parts[0].charAt(index) + "" + parts[1].charAt(index);
+            }
+        }
+    }
+    
+    public ArrayList<String> getLeftLetterPairs(){
+        ArrayList<String> leftLetterPairs = new ArrayList<>();
+        for (LetterGroup child: this.leftKids){
+            leftLetterPairs.add(child.getLetterPairAt(0, true, true));
+        }
+        return leftLetterPairs;
+    }
+
+    public ArrayList<String> getRightLetterPairs(){
+        ArrayList<String> rightLetterPairs = new ArrayList<>();
+        for (LetterGroup child: this.rightKids){
+            String[] parts = child.name.split("/");
+            rightLetterPairs.add(child.getLetterPairAt(parts[0].length() - 1, true, true));
+        }
+        return rightLetterPairs;
     }
 
  

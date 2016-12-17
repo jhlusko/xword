@@ -503,7 +503,6 @@ public class Crossword {
             HashSet<LetterGroup> options = new HashSet<LetterGroup>();
             options.add(this.index.get("*/*"));
             this.candidates.put(new Point(0, -1), options);
-            printOptions(new Point(0, -1));            
         }
         
         //find current (empty) row
@@ -513,7 +512,9 @@ public class Crossword {
         }
 
         //if word can't be extended, finish puzzle
-        if (getOptions(this.candidates.get(new Point(0, workingRow - 1))).isEmpty()){
+        HashSet<LetterGroup> optionsForExtension = getOptions(this.candidates.get(new Point(0, workingRow - 1)));
+        if (optionsForExtension.isEmpty()){
+            System.out.println("no candidate at (0, " + workingRow + "), moving to completePuzzle");
             this.candidates.remove(new Point(0, workingRow - 1));
             this.candidates.remove(new Point(1, workingRow - 1));
             this.completePuzzle();
@@ -521,10 +522,27 @@ public class Crossword {
         }
 
         //create new lowest candidate in 0 column
-        this.candidates.put(new Point(0, workingRow), getOptions(this.candidates.get(new Point(0, workingRow - 1))));
+        HashSet<LetterGroup> options = getOptions(this.candidates.get(new Point(0, workingRow - 1)));
+        //even rows are the start of a horizontal word
+        HashSet<LetterGroup> refinedOptions = new HashSet<>();
+        if (workingRow % 2 == 0){
+            for (LetterGroup option : options){
+                if (this.index.get("*" + option.lastLetters.charAt(0) + "/*" + option.lastLetters.charAt(1)) != null){
+                    refinedOptions.add(option);
+                }
+            }
+        }
+        else{
+            for (LetterGroup option : options){
+                if (this.index.get(option.lastLetters.charAt(0) + "*/" + option.lastLetters.charAt(1)) + "*" != null){
+                    refinedOptions.add(option);
+                }
+            }
+        }
+        this.candidates.put(new Point(0, workingRow), refinedOptions);
         printOptions(new Point(0, workingRow));
 
-        //create complement in first column
+        //create complement in "1" column
         if (workingRow == 0){
             this.candidates.put(new Point(1, 0), getOptions(this.candidates.get(new Point(0, 0))));
             printOptions(new Point(1, 0));
@@ -540,13 +558,24 @@ public class Crossword {
             }
             //find the subset of matching letterPairs which could extend it horizontally, remove nonmatches
             HashSet<String> intersectionPairs = new HashSet<>();
-            HashSet<LetterGroup> refinedOptions = new HashSet<>();
+            refinedOptions = new HashSet<>();
             for (LetterGroup parentOption: this.candidates.get(new Point(0, workingRow))){
                 for (LetterGroup currentOption: parentOption.rightKids){
                     if(verticalPairs.contains(currentOption.lastLetters)){
-                        intersectionPairs.add(currentOption.lastLetters);
-                        refinedOptions.add(parentOption);
-                        break;
+                        String[] parts = currentOption.name.replace("*", "").split("/");
+                        //odd rows are the end of a horizontal word
+                        if (workingRow % 2 == 1){
+                            if (this.index.get(parts[0] + "*/" + parts[1] + "*") != null){
+                                intersectionPairs.add(currentOption.lastLetters);
+                                refinedOptions.add(parentOption);
+                                break;
+                            }
+                        }
+                        else{
+                            intersectionPairs.add(currentOption.lastLetters);
+                            refinedOptions.add(parentOption);
+                            break;
+                        }
                     }
                 }
             }
@@ -567,64 +596,83 @@ public class Crossword {
     private void completePuzzle() {
         //get workingRow
         int lowestFullRow = 0;
-        while (this.candidates.containsKey(new Point(1, lowestFullRow + 1))){
+        while (this.candidates.containsKey(new Point(0, lowestFullRow + 1)) && this.candidates.containsKey(new Point(1, lowestFullRow + 1))){
             lowestFullRow++;
         }
-        //get word for (left) column 0, add it to puzzle
-        Iterator<LetterGroup> iter = this.candidates.get(new Point(0, lowestFullRow)).iterator();
+        System.out.println("this.candidates.get(new Point(0, lowestFullRow)).size(): " + this.candidates.get(new Point(0, lowestFullRow)).size());
+        int endingColumn = (this.candidates.get(new Point(0, lowestFullRow)).size() < this.candidates.get(new Point(1, lowestFullRow)).size()) ? 0 : 1;
+        int workingColumn = (endingColumn + 1) % 2;
+        HashSet<LetterGroup> workingOptions = new HashSet<>();
+        
+        //add ending word to puzzle
+        Iterator<LetterGroup> iter = this.candidates.get(new Point(endingColumn, lowestFullRow)).iterator();
         while (iter.hasNext()){
+            if (this.entries.size() > 1){
+                    break;
+                }
             LetterGroup word = iter.next();
             this.clear();
-            this.addEntry(new Entry(word.clue, new Point(0,0), 0, false));
-
-            //find letterPair options for (right) column 1, from bottom to top
-            String leftLetterPair = this.squares.get(new Point(0, lowestFullRow));
-            LetterGroup leftLetterGroup = this.index.get(leftLetterPair.charAt(0) + "/" + leftLetterPair.charAt(1));
-            ArrayList<String> rightLetterList = new ArrayList<>();
-            for (LetterGroup child : leftLetterGroup.rightKids){
-                rightLetterList.add(child.lastLetters);
-            }
-            for (LetterGroup option: this.candidates.get(new Point(1, lowestFullRow))){
-                String[] parts = option.name.replace("*", "").split("/");
-                String rightLetterPairFromOption = parts[0].charAt(lowestFullRow) + "" + parts[1].charAt(lowestFullRow);
-                if (rightLetterList.contains(rightLetterPairFromOption)){
-                    if (option == this.index.get("*SWAG*/*LOOT*")){
-                        System.out.println("debug");
+            this.addEntry(new Entry(word.clue, new Point(endingColumn,0), 0, false));
+            
+            System.out.println("options: " + this.candidates.get(new Point(workingColumn, lowestFullRow)).size());
+            
+            //find letterPair options for working column, from bottom to top
+           option_search:
+           for (LetterGroup option: this.candidates.get(new Point(workingColumn, lowestFullRow))){
+                int workingRow = 0;
+                while (workingRow <= lowestFullRow){
+                    //check if workingColumn has a match for endingColumn
+                    ArrayList <String> extendedLetterPairOptions = new ArrayList<>();
+                    if (endingColumn == 0){
+                        extendedLetterPairOptions = this.index.get(option.getLetterPairAt(workingRow, false, true)).getRightLetterPairs();
                     }
-                    if (validOption(option, lowestFullRow - 1)){
-                        this.addEntry(new Entry(option.clue, new Point(1,lowestFullRow), lowestFullRow, false));
-                        break;
+                    else{
+                        extendedLetterPairOptions = this.index.get(option.getLetterPairAt(workingRow, false, true)).getLeftLetterPairs();
+                    }
+                    String letterPairToMatch = this.squares.get(new Point(endingColumn, workingRow)).charAt(0) + "/" +
+                            this.squares.get(new Point(endingColumn, workingRow)).charAt(1);
+                    if (extendedLetterPairOptions.contains(letterPairToMatch)){
+                        System.out.println("MATCH! ON " + workingRow);
+                        workingRow++;
+                    }
+                    else{
+                        continue option_search;
                     }
                 }
-            }
-            if (this.entries.size() > 1){
-                break;
-            }
+                workingOptions.add(option);
+           }
+           System.out.println("workingOptions.size(): " +workingOptions.size());
         }
-        int workingRow = 0;
-        while (workingRow <= lowestFullRow){
-            if (workingRow % 2 == 0){
-                LetterGroup word = this.index.get("*" + this.squares.get(new Point(0, workingRow)).charAt(0) + 
-                    this.squares.get(new Point(1, workingRow)).charAt(0) + "/*" +
-                    this.squares.get(new Point(0, workingRow)).charAt(1) + 
-                    this.squares.get(new Point(1, workingRow)).charAt(1));
-                if (word != null){
-                    this.addEntry(new Entry(word.clue, new Point(0, workingRow), 0, true));
-                }
-            }
-            else{
-                LetterGroup word = this.index.get(this.squares.get(new Point(0, workingRow)).charAt(0) + 
-                    this.squares.get(new Point(1, workingRow)).charAt(0) + "*/" +
-                    this.squares.get(new Point(0, workingRow)).charAt(1) + 
-                    this.squares.get(new Point(1, workingRow)).charAt(1) + "*");
-                if (word != null){
-                    this.addEntry(new Entry(word.clue, new Point(1, workingRow), word.name.length(), true));
-                }
-            }
-            workingRow++;
-        }
-        this.display();
     }
+                    
+                    
+//                    if (workingRow % 2 == 0){
+//                        LetterGroup word = this.index.get("*" + this.squares.get(new Point(0, workingRow)).charAt(0) + 
+//                            this.squares.get(new Point(1, workingRow)).charAt(0) + "/*" +
+//                            this.squares.get(new Point(0, workingRow)).charAt(1) + 
+//                            this.squares.get(new Point(1, workingRow)).charAt(1));
+//                        if (word != null){
+//                            this.addEntry(new Entry(word.clue, new Point(0, workingRow), 0, true));
+//                        }
+//                    }
+//                    else{
+//                        LetterGroup word = this.index.get(this.squares.get(new Point(0, workingRow)).charAt(0) + 
+//                            this.squares.get(new Point(1, workingRow)).charAt(0) + "*/" +
+//                            this.squares.get(new Point(0, workingRow)).charAt(1) + 
+//                            this.squares.get(new Point(1, workingRow)).charAt(1) + "*");
+//                        if (word != null){
+//                            this.addEntry(new Entry(word.clue, new Point(1, workingRow), word.name.length(), true));
+//                        }
+//                    }
+//                    workingRow++;
+//                }
+//                if (this.entries.size() > 1){
+//                    break;
+//                }
+//            }
+//        }
+//        this.display();
+//    }
 
     private void printOptions(Point point) {
         System.out.println(this.candidates.get(point).size() + " options at ("+point.x +", "+point.y+")");
@@ -684,10 +732,27 @@ public class Crossword {
         Crossword cw = new Crossword(wordPairs);
         cw.buildIndex();
         cw.buildPuzzle();
+        
+//        LetterGroup testWord = cw.index.get("F/P");
+//        ArrayList<String> rightLetterPairs = testWord.getRightLetterPairs();
+//        for (String pair: rightLetterPairs){
+//            System.out.println(pair);
+//        }
+//        for (LetterGroup word: testWord.rightKids){
+//            System.out.println(word.name);
+//        }
+//        ArrayList<String> lefttLetterPairs = testWord.getLeftLetterPairs();
+//        for (String pair: lefttLetterPairs){
+//            System.out.println(pair);
+//        }
+//        for (LetterGroup word: testWord.leftKids){
+//            System.out.println(word.name);
+//        }
+        
 
-//        LetterGroup word = cw.index.get("B/P");
-//        System.out.println(word.name);
-//        System.out.println(word.clue.words.get(0) + "/" + word.clue.words.get(1));
+        
+
+        
         
     }
 
