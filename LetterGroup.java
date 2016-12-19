@@ -45,16 +45,16 @@ public class LetterGroup {
         }
     }
     
-    public ArrayList<String> getLeftLetterPairs(){
-        ArrayList<String> leftLetterPairs = new ArrayList<>();
+    public HashSet<String> getLeftLetterPairs(){
+        HashSet<String> leftLetterPairs = new HashSet<>();
         for (LetterGroup child: this.leftKids){
             leftLetterPairs.add(child.getLetterPairAt(0, true, true));
         }
         return leftLetterPairs;
     }
 
-    public ArrayList<String> getRightLetterPairs(){
-        ArrayList<String> rightLetterPairs = new ArrayList<>();
+    public HashSet<String> getRightLetterPairs(){
+        HashSet<String> rightLetterPairs = new HashSet<>();
         for (LetterGroup child: this.rightKids){
             String[] parts = child.name.split("/");
             rightLetterPairs.add(child.getLetterPairAt(parts[0].length() - 1, true, true));
@@ -65,6 +65,16 @@ public class LetterGroup {
     public int numLetters(){
         String[] parts = this.name.split("/");
         return parts[0].length();
+    }
+
+    public LetterGroup extend(String letterPair) {
+        for (LetterGroup child: this.rightKids){
+            if (child.getLetterPairAt(child.numLetters() - 1, true, true).equals(letterPair)){
+                return child;
+            }
+        }
+        //TODO: replace null with exception handling
+        return null;
     }
 
  

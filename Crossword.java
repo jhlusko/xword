@@ -54,8 +54,8 @@ public class Crossword {
 	ArrayList<Clue> dictionary;
 	ArrayList<Point>badOrigins;
 	Scanner scanner;
-	
-	public Crossword(ArrayList<Clue> wordPairs){
+
+        public Crossword(ArrayList<Clue> wordPairs){
 		this.dictionary = wordPairs;
                 this.index = new HashMap<String, LetterGroup>();
 		this.squares = new HashMap<Point, String>();
@@ -439,7 +439,7 @@ public class Crossword {
 		
 	}
 
-	private void buildIndex() {
+	void buildIndex() {
 		for (Clue clue:this.dictionary){
 			buildClueIndex(clue);
 		}
@@ -488,42 +488,43 @@ public class Crossword {
         
     }
 
-    private void buildPuzzle(Puzzle puzzle) {
+    void buildPuzzle(Puzzle p) {
         
-        if (puzzle.rightWord.numLetters() > 5 &&
-                puzzle.leftWord.clue != puzzle.rightWord.clue){
-            this.puzzles.add(puzzle);
+        if (p.horizontalWords.size() > 3){
+            p.printPuzzle();
         }
         
-        //add to left word (-2 b/c of starting *.../*)
-        if (puzzle.leftWord.name.length() - 2 == puzzle.rightWord.name.length()){
-            for (LetterGroup child: puzzle.leftWord.rightKids){
-                buildPuzzle(new Puzzle(child, puzzle.rightWord));
+        int column;
+        int row = p.horizontalWords.size() - 1;
+        for (column = 0; column < p.verticalWords.size() ; column++){
+            if (p.verticalWords.get(column).numLetters() < p.horizontalWords.size() + 1){ //+1 for the first column of all ****
+                row = p.verticalWords.get(column).numLetters() - 1;
+                break;
             }
         }
-        
-        //add to right word
+        if (column < p.verticalWords.size()){
+            HashSet<String> verticalOptions = p.verticalWords.get(column).getRightLetterPairs();
+            HashSet<String> horizontalOptions = p.horizontalWords.get(row).getRightLetterPairs();
+            verticalOptions.retainAll(horizontalOptions);
+            for (String letterPair: verticalOptions){
+                if (letterPair.equals("*/*")){
+                    p.printPuzzle();
+                }
+                ArrayList<LetterGroup> vertCopy = new ArrayList<LetterGroup>(p.verticalWords);
+                ArrayList<LetterGroup> horCopy = new ArrayList<LetterGroup>(p.horizontalWords);
+                vertCopy.set(column, p.verticalWords.get(column).extend(letterPair));
+                horCopy.set(row, p.horizontalWords.get(row).extend(letterPair));
+                buildPuzzle(new Puzzle(vertCopy, horCopy));
+            }
+        }
         else{
-            int row = puzzle.leftWord.numLetters() - 2;
-            HashSet<String> validExtensions = new HashSet<>();
-            for (LetterGroup extension: this.index.get(puzzle.leftWord.getLetterPairAt(row, false, true)).rightKids){
-                String[] parts = extension.name.split("/");
-                if (row % 2 == 1){
-                    if (this.index.get(parts[0] + "*/" + parts[1] + "*") != null){
-                        validExtensions.add(extension.getLetterPairAt(extension.numLetters() - 1, true, false));                
-                    }
-                }
-                else{
-                    if (this.index.get("*" + parts[0] + "/*" + parts[1]) != null){
-                        validExtensions.add(extension.getLetterPairAt(extension.numLetters() - 1, true, false));                
-                    }
-                }
+            if (p.horizontalWords.size() == p.verticalWords.size()){
+                p.verticalWords.add(this.index.get("*/*"));
+                buildPuzzle(p);
             }
-            for (LetterGroup child: puzzle.rightWord.rightKids){
-                String letterPair = child.getLetterPairAt(row, true, false); 
-                if (validExtensions.contains(letterPair)){
-                    buildPuzzle(new Puzzle(puzzle.leftWord, child));
-                }
+            else{
+                p.horizontalWords.add(this.index.get("*/*"));
+                buildPuzzle(p);
             }
         }
     }
@@ -540,47 +541,16 @@ public class Crossword {
         this.yMax = 0;
     }
     
-    private void completePuzzle(Puzzle puzzle) {
-        this.clear();
-        this.addEntry(new Entry(puzzle.leftWord.clue, new Point(0, 0), 0, false));
-        this.addEntry(new Entry(puzzle.rightWord.clue, new Point(1, 0), getOffset(puzzle.rightWord), false));
-        for (int row = 0; row < puzzle.leftWord.numLetters(); row++){
-            if (this.squares.containsKey(new Point(1, row))){
-                String leftLetterPair = this.squares.get(new Point (0, row));
-                String righttLetterPair = this.squares.get(new Point (1, row));
-                if (row % 2 == 0){
-                    LetterGroup wordStub = this.index.get("*" + leftLetterPair.charAt(0) +
-                            righttLetterPair.charAt(0) +
-                            "/*" + leftLetterPair.charAt(1) + righttLetterPair.charAt(1));
-                            
-                    this.addEntry(new Entry(wordStub.clue, new Point(0, row), 0, true));
-
-                }
-                else{
-                    LetterGroup wordStub = this.index.get("" + leftLetterPair.charAt(0) +
-                            righttLetterPair.charAt(0) + "*/" + 
-                            leftLetterPair.charAt(1) + righttLetterPair.charAt(1) + "*");
-                    this.addEntry(new Entry(wordStub.clue, new Point(1, row), wordStub.clue.words.get(0).length() - 1, true));
-                }        
-            }
-        }
-        this.display();
         
-    }
-
-    private int getOffset(LetterGroup rightWord) {
-        String[] parts = rightWord.name.replace("*", "").split("/");
-        return rightWord.clue.words.get(0).indexOf(parts[0]);
-    }
-    
     public static void main(String[] args) throws IOException, ClassNotFoundException, Exception {
         ArrayList<Clue> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
         Crossword cw = new Crossword(wordPairs);
         cw.buildIndex();
+//        LetterGroup test = cw.index.get("*I/*O");
         for (LetterGroup child: cw.index.get("*/*").rightKids){
-            for (LetterGroup grandchild: child.rightKids){
-                cw.buildPuzzle(new Puzzle(grandchild, cw.index.get(grandchild.getLetterPairAt(1, false, true))));
-            }
+            ArrayList<LetterGroup> initialLetterGroup = new ArrayList<LetterGroup>();
+            initialLetterGroup.add(child);
+            cw.buildPuzzle(new Puzzle(new ArrayList<LetterGroup>(initialLetterGroup), new ArrayList<LetterGroup>(initialLetterGroup)));
         }
         System.out.println(cw.puzzles.size());
         for (Puzzle p : cw.puzzles){
@@ -591,6 +561,10 @@ public class Crossword {
         }
         System.out.println(cw.puzzles.size());
     } 
+
+    void completePuzzle(Puzzle p) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 
     
 }

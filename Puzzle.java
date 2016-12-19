@@ -5,20 +5,29 @@
  */
 package dictionary;
 
+import java.util.ArrayList;
+
 /**
  *
  * @author jamie
  */
 class Puzzle {
     
-    public LetterGroup leftWord;
-    public LetterGroup rightWord;
+    public ArrayList<LetterGroup> verticalWords;
+    public ArrayList<LetterGroup> horizontalWords;
 
     
-    public Puzzle(LetterGroup leftWord, LetterGroup rightWord){
-        this.leftWord = leftWord;
-        this.rightWord = rightWord;
+    public Puzzle(ArrayList<LetterGroup> verticalWords, ArrayList<LetterGroup> horizontalWords){
+        this.verticalWords = verticalWords;
+        this.horizontalWords = horizontalWords;
         
+    }
+
+    void printPuzzle() {
+        for (LetterGroup word: this.horizontalWords){
+            System.out.println(word.name);
+        }
+        System.out.println();
     }
         
 }
