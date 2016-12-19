@@ -8,9 +8,9 @@ public class Test {
 
 	public static void main(String[] args) {
 	
-            String test = "0123";
-            System.out.println("test.length(): " + test.length());
-            System.out.println("test.charAt(1): " + test.charAt(1));
+            String test = "0123456";
+            String sub = "234";
+            System.out.println("test.indexOf(sub): " + test.indexOf(sub));
             
 		
 	}

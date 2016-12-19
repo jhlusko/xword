@@ -489,63 +489,89 @@ public class Crossword {
     }
 
     private void buildPuzzle(Puzzle puzzle) {
-        int row;
+        
+        if (puzzle.rightWord.numLetters() > 5 &&
+                puzzle.leftWord.clue != puzzle.rightWord.clue){
+            this.puzzles.add(puzzle);
+        }
+        
         //add to left word (-2 b/c of starting *.../*)
         if (puzzle.leftWord.name.length() - 2 == puzzle.rightWord.name.length()){
-            row = puzzle.leftWord.numLetters() - 1;
-            if (puzzle.leftWord.rightKids.isEmpty() && 
-                    puzzle.leftWord.numLetters() > 5 &&
-                    puzzle.leftWord.clue != puzzle.rightWord.clue){
-                this.puzzles.add(puzzle);
-            }
             for (LetterGroup child: puzzle.leftWord.rightKids){
-                if (row % 2 == 0){
-                    String letterPair = child.getLetterPairAt(row, true, false); 
-                    if (this.index.get("*" + letterPair.charAt(0) + "/*" + letterPair.charAt(1)) != null){
-                        buildPuzzle(new Puzzle(child, puzzle.rightWord));
+                buildPuzzle(new Puzzle(child, puzzle.rightWord));
+            }
+        }
+        
+        //add to right word
+        else{
+            int row = puzzle.leftWord.numLetters() - 2;
+            HashSet<String> validExtensions = new HashSet<>();
+            for (LetterGroup extension: this.index.get(puzzle.leftWord.getLetterPairAt(row, false, true)).rightKids){
+                String[] parts = extension.name.split("/");
+                if (row % 2 == 1){
+                    if (this.index.get(parts[0] + "*/" + parts[1] + "*") != null){
+                        validExtensions.add(extension.getLetterPairAt(extension.numLetters() - 1, true, false));                
                     }
                 }
                 else{
-                    buildPuzzle(new Puzzle(child, puzzle.rightWord));
+                    if (this.index.get("*" + parts[0] + "/*" + parts[1]) != null){
+                        validExtensions.add(extension.getLetterPairAt(extension.numLetters() - 1, true, false));                
+                    }
                 }
-            }
-        }
-        //add to right word
-        else{
-            row = puzzle.leftWord.numLetters() - 2;
-            if (puzzle.rightWord.rightKids.isEmpty() && 
-                    puzzle.rightWord.numLetters() > 5 &&
-                    puzzle.leftWord.clue != puzzle.rightWord.clue){
-                this.puzzles.add(puzzle);
-            }
-            HashSet<String> validExtensions = new HashSet<>();
-            for (LetterGroup extension: this.index.get(puzzle.leftWord.getLetterPairAt(row, false, true)).rightKids){
-                validExtensions.add(extension.getLetterPairAt(extension.numLetters() - 1, true, false));                
             }
             for (LetterGroup child: puzzle.rightWord.rightKids){
                 String letterPair = child.getLetterPairAt(row, true, false); 
                 if (validExtensions.contains(letterPair)){
-                    if (row % 2 == 1){
-                        LetterGroup test = this.index.get(letterPair.charAt(0) + "*/" + letterPair.charAt(1) + "*");
-                        if (this.index.get(letterPair.charAt(0) + "*/" + letterPair.charAt(1) + "*") != null){
-                            buildPuzzle(new Puzzle(puzzle.leftWord, child));
-                        }
-                    }
-                    else{
-                        buildPuzzle(new Puzzle(puzzle.leftWord, child));
-                    }
+                    buildPuzzle(new Puzzle(puzzle.leftWord, child));
                 }
             }
         }
     }
     
-    private static void completePuzzle(Puzzle p) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+
+    private void clear() {
+        this.squares = new HashMap<Point, String>();
+        this.rows = new HashMap<Integer, ArrayList<Point>>();
+        this.columns = new HashMap<Integer, ArrayList<Point>>();
+        this.entries = new ArrayList<Entry>();
+        this.xMin = 0;
+        this.xMax = 0;
+        this.yMin = 0;
+        this.yMax = 0;
+    }
+    
+    private void completePuzzle(Puzzle puzzle) {
+        this.clear();
+        this.addEntry(new Entry(puzzle.leftWord.clue, new Point(0, 0), 0, false));
+        this.addEntry(new Entry(puzzle.rightWord.clue, new Point(1, 0), getOffset(puzzle.rightWord), false));
+        for (int row = 0; row < puzzle.leftWord.numLetters(); row++){
+            if (this.squares.containsKey(new Point(1, row))){
+                String leftLetterPair = this.squares.get(new Point (0, row));
+                String righttLetterPair = this.squares.get(new Point (1, row));
+                if (row % 2 == 0){
+                    LetterGroup wordStub = this.index.get("*" + leftLetterPair.charAt(0) +
+                            righttLetterPair.charAt(0) +
+                            "/*" + leftLetterPair.charAt(1) + righttLetterPair.charAt(1));
+                            
+                    this.addEntry(new Entry(wordStub.clue, new Point(0, row), 0, true));
+
+                }
+                else{
+                    LetterGroup wordStub = this.index.get("" + leftLetterPair.charAt(0) +
+                            righttLetterPair.charAt(0) + "*/" + 
+                            leftLetterPair.charAt(1) + righttLetterPair.charAt(1) + "*");
+                    this.addEntry(new Entry(wordStub.clue, new Point(1, row), wordStub.clue.words.get(0).length() - 1, true));
+                }        
+            }
+        }
+        this.display();
+        
     }
 
-
-
-
+    private int getOffset(LetterGroup rightWord) {
+        String[] parts = rightWord.name.replace("*", "").split("/");
+        return rightWord.clue.words.get(0).indexOf(parts[0]);
+    }
     
     public static void main(String[] args) throws IOException, ClassNotFoundException, Exception {
         ArrayList<Clue> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
@@ -556,15 +582,15 @@ public class Crossword {
                 cw.buildPuzzle(new Puzzle(grandchild, cw.index.get(grandchild.getLetterPairAt(1, false, true))));
             }
         }
+        System.out.println(cw.puzzles.size());
         for (Puzzle p : cw.puzzles){
-            System.out.println(p.leftWord.name);
-            System.out.println(p.rightWord.name);
-            System.out.println(p.leftWord.clue.words.get(0) + "/" + p.leftWord.clue.words.get(1));
-            System.out.println(p.rightWord.clue.words.get(0) + "/" + p.rightWord.clue.words.get(1));
-            System.out.println();
-            //completePuzzle(p);
+//            System.out.println(p.leftWord.name);
+//            System.out.println(p.rightWord.name);
+//            System.out.println();
+            cw.completePuzzle(p);
         }
         System.out.println(cw.puzzles.size());
-        
     } 
+
+    
 }
