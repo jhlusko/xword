@@ -4,13 +4,13 @@ import java.awt.Point;
 
 public class Entry {
 	
-	Clue wordGroup;
+	WordGroup wordGroup;
 	Point point; 
 	boolean isHorizontal;
 	int offset;
 	Point origin;
 
-	public Entry(Clue w, Point p, int o, boolean isHorizontal){
+	public Entry(WordGroup w, Point p, int o, boolean isHorizontal){
 		this.wordGroup = w;
 		this.point = p;
 		this.offset = o;

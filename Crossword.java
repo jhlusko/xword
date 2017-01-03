@@ -31,36 +31,26 @@ import edu.mit.jwi.item.ISynsetID;
 import edu.mit.jwi.item.IWord;
 import edu.mit.jwi.item.POS;
 import edu.mit.jwi.item.Pointer;
-import java.util.HashSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class Crossword {
 	
 	
-	private static final int WORD_LENGTH = 9;
-
-    
-	HashMap<String, LetterGroup> index;
 	HashMap<Point, String> squares;
-        ArrayList<Puzzle> puzzles;
-        HashMap<Integer, ArrayList<Point>> rows;
+	HashMap<Integer, ArrayList<Point>> rows;
 	HashMap<Integer, ArrayList<Point>> columns;
 	ArrayList<Entry> entries;
 	int xMin;
 	int xMax;
 	int yMin;
 	int yMax;
-	ArrayList<Clue> dictionary;
+	ArrayList<WordGroup> dictionary;
 	ArrayList<Point>badOrigins;
 	Scanner scanner;
 	
-	public Crossword(ArrayList<Clue> wordPairs){
+	public Crossword(ArrayList<WordGroup> wordPairs){
 		this.dictionary = wordPairs;
-                this.index = new HashMap<String, LetterGroup>();
 		this.squares = new HashMap<Point, String>();
-		this.puzzles = new ArrayList<Puzzle>();
-                this.rows = new HashMap<Integer, ArrayList<Point>>();
+		this.rows = new HashMap<Integer, ArrayList<Point>>();
 		this.columns = new HashMap<Integer, ArrayList<Point>>();
 		this.entries = new ArrayList<Entry>();
 		this.xMin = 0;
@@ -80,27 +70,37 @@ public class Crossword {
 		return dict;
 	}
 
-	public static void addWordsToDict (Clue wordGroup, java.util.List<IWord> words, int wordLength) {
+	public static void addWordsToDict (WordGroup wordGroup, java.util.List<IWord> words) {
 		for (Iterator <IWord> i = words.iterator(); i.hasNext();) {
 			String word = i.next().getLemma();
-			if (word.length() < wordLength){
+//			if (word.length() < 4){
 				wordGroup.add(word);
-			}
+//			}
 		}
 	}
 
-	public void addRelatedWords (Clue wordGroup, IDictionary dict, ISynset synset, Pointer pointerType) {
+	public void addRelatedWords (WordGroup wordGroup, IDictionary dict, ISynset synset, Pointer pointerType) {
 		java.util.List<ISynsetID> hypernyms = synset.getRelatedSynsets(pointerType ) ;
 		for ( ISynsetID sid : hypernyms ) {
-			addWordsToDict(wordGroup, dict.getSynset(sid).getWords(), WORD_LENGTH);
+			addWordsToDict(wordGroup, dict.getSynset(sid).getWords());
 		}
 	}
 
-	public static ArrayList<Clue> getEqualLengthDict() throws IOException{
+	public ArrayList<String> getLetterPairs(String[] args) {
+		ArrayList<String> LetterPairs = new ArrayList<String>();
+		for(char first = 'a'; first <= 'z';first++) {
+			for(char second = 'a'; second <= 'z';second++) {
+				LetterPairs.add((String.valueOf(first)+String.valueOf(second)));
+			}
+		}
+		return LetterPairs;
+	}
+
+	public static ArrayList<WordGroup> getEqualLengthDict() throws IOException{
 		IDictionary dict = getDictionary();
 		
-		ArrayList<Clue> synDict = new ArrayList<Clue>();
-		ArrayList<Clue> equalLengthDict = new ArrayList<Clue>();
+		ArrayList<WordGroup> synDict = new ArrayList<WordGroup>();
+		ArrayList<WordGroup> equalLengthDict = new ArrayList<WordGroup>();
 		
 		int index = 0;
 		for (Iterator <ISynset> i = dict.getSynsetIterator(POS.NOUN); i.hasNext();){
@@ -108,14 +108,14 @@ public class Crossword {
 //			System.out.print("Synsets: ");
 			ISynset synset = i.next();
 			
-			synDict.add(new Clue(synset.getGloss()));
+			synDict.add(new WordGroup(synset.getGloss()));
 			
-			addWordsToDict(synDict.get(index), synset.getWords(), WORD_LENGTH);
+			addWordsToDict(synDict.get(index), synset.getWords());
 			//addRelatedWords(synDict.get(index), dict, synset, Pointer.HYPONYM);
 			//addRelatedWords(synDict.get(index), dict, synset, Pointer.HYPERNYM);
 			index ++;
 		}
-		for (Clue w : synDict){
+		for (WordGroup w : synDict){
 			Collections.sort(w.words, new SortByWordLength());
 			//System.out.println(w.words.toString());
 			while (w.words.size() != 0){
@@ -144,7 +144,7 @@ public class Crossword {
 					while (--index1 != -1){
 						newWords.add(w.words.remove(index1));
 	    			}
-	    		Clue newWordGroup = new Clue(w.clue, newWords);
+	    		WordGroup newWordGroup = new WordGroup(w.clue, newWords);
 //				System.out.println("new words:");
 //	    		newWordGroup.printInfo();
 				equalLengthDict.add(newWordGroup);
@@ -154,15 +154,15 @@ public class Crossword {
 		return equalLengthDict;
 	}
 
-	public static ArrayList<Clue> getWordPairs(ArrayList<Clue> equalLengthDict){
-		ArrayList<Clue> wordPairs = new ArrayList<Clue>();
-		for (Clue w : equalLengthDict){
+	public static ArrayList<WordGroup> getWordPairs(ArrayList<WordGroup> equalLengthDict){
+		ArrayList<WordGroup> wordPairs = new ArrayList<WordGroup>();
+		for (WordGroup w : equalLengthDict){
 			int firstWordIndex = 0;
 			int secondWordIndex = 1;
 			while (firstWordIndex < w.words.size()){
 	    		while (secondWordIndex < w.words.size()){
-	    			wordPairs.add(new Clue(w.clue, new ArrayList<String>(Arrays.asList(w.words.get(firstWordIndex), w.words.get(secondWordIndex)))));
-	    			wordPairs.add(new Clue(w.clue, new ArrayList<String>(Arrays.asList(w.words.get(secondWordIndex), w.words.get(firstWordIndex)))));
+	    			wordPairs.add(new WordGroup(w.clue, new ArrayList<String>(Arrays.asList(w.words.get(firstWordIndex), w.words.get(secondWordIndex)))));
+	    			wordPairs.add(new WordGroup(w.clue, new ArrayList<String>(Arrays.asList(w.words.get(secondWordIndex), w.words.get(firstWordIndex)))));
 	    			secondWordIndex++;
 	    		}
 	    		firstWordIndex++;
@@ -172,8 +172,8 @@ public class Crossword {
 		return wordPairs;
 	}
 
-	public static java.util.ArrayList<Clue> sanitize(ArrayList<Clue> equalLengthDict){
-		for (Clue wordGroup : equalLengthDict){
+	public static java.util.ArrayList<WordGroup> sanitize(ArrayList<WordGroup> equalLengthDict){
+		for (WordGroup wordGroup : equalLengthDict){
 			for (int i = 0 ; i < wordGroup.words.size(); i++){
 				Pattern p = Pattern.compile("[0-9]");
 				Matcher m = p.matcher(wordGroup.words.get(i));
@@ -188,43 +188,66 @@ public class Crossword {
 		return equalLengthDict;
 	}
 
+	public WordGroup confirmWord(WordGroup word){
+		word.printInfo();
+		System.out.println("Add word to crossword or export crossword? (y/n/e)");
+		String input = this.scanner.next();
+		if (input.equals("n")){
+			this.dictionary.remove(word);
+		}
+		else if (input.equals("y")){
+			System.out.println("Adding word to crossword!");
+			return word;
+		}
+		else if (input.equals("e")){
+			System.out.println("Exporting crossword!");
+			try {
+				this.export();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+		else{
+			System.out.println("??? your input: " + input);
+		}
+		return null;
 	
-	public void addEntry(Entry e){
-            for (int i = 0; i< e.wordGroup.words.get(0).length(); i++){
-                Point point = new Point(e.point.x + i*((e.isHorizontal)?1:0) - e.offset*((e.isHorizontal)?1:0), e.point.y + i*((e.isHorizontal)?0:1) - e.offset*((e.isHorizontal)?0:1));
-                String letterPair = "" + e.wordGroup.words.get(0).charAt(i) + e.wordGroup.words.get(1).charAt(i);
-                addSquare(point, letterPair);
-            }
-            entries.add(e);
-            this.dictionary.remove(e.wordGroup);
 	}
 
-        public void addSquare(Point point, String letterPair){
-            squares.put(point, letterPair);
-            if (rows.get(point.y) != null){
-                rows.get(point.y).add(point); 
-            } else {
-                rows.put(point.y, new ArrayList<Point>(Arrays.asList(point)));
-            }
-            if (columns.get(point.x) != null){
-                columns.get(point.x).add(point); 
-            } else {
-                columns.put(point.x, new ArrayList<Point>(Arrays.asList(point)));
-            }
-
-            if (point.x < xMin){
-                xMin = point.x;
-            }
-            if (point.x > xMax){
-                xMax = point.x;
-            }
-            if (point.y < yMin){
-                yMin = point.y;
-            }
-            if (point.y > yMax){
-                yMax = point.y;
-            }
-        }
+	public void addEntry(Entry e){
+		for (int i = 0; i< e.wordGroup.words.get(0).length(); i++){
+			Point point = new Point(e.point.x + i*((e.isHorizontal)?1:0) - e.offset*((e.isHorizontal)?1:0), e.point.y + i*((e.isHorizontal)?0:1) - e.offset*((e.isHorizontal)?0:1));
+			String letterPair = "" + e.wordGroup.words.get(0).charAt(i) + e.wordGroup.words.get(1).charAt(i);
+			squares.put(point, letterPair);
+			if (rows.get(point.y) != null){
+				rows.get(point.y).add(point); 
+			} else {
+				rows.put(point.y, new ArrayList<Point>(Arrays.asList(point)));
+			}
+			if (columns.get(point.x) != null){
+				columns.get(point.x).add(point); 
+			} else {
+				columns.put(point.x, new ArrayList<Point>(Arrays.asList(point)));
+			}
+			
+			if (point.x < xMin){
+				xMin = point.x;
+			}
+			if (point.x > xMax){
+				xMax = point.x;
+			}
+			if (point.y < yMin){
+				yMin = point.y;
+			}
+			if (point.y > yMax){
+				yMax = point.y;
+			}
+		}
+		entries.add(e);
+		this.dictionary.remove(e.wordGroup);
+		
+	}
 		
 	public void printOne(int num){
 		System.out.print("..");
@@ -300,11 +323,45 @@ public class Crossword {
 		
 	}
 
+	public Point findNextOrigin() {
+		int x = xMin + (int)(Math.random() * ((xMax - xMin) + 1));
+		x = (x % 2 == 0) ? x : x + 1;
+		int y = yMin + (int)(Math.random() * ((yMax - yMin) + 1));
+		y = (y % 2 == 0) ? y : y + 1;
+		if (this.squares.get(new Point(x, y)) != null && 
+				!this.badOrigins.contains(new Point(x, y)) &&
+				((this.squares.get(new Point(x + 1, y)) == null && this.squares.get(new Point(x - 1, y)) == null) || 
+				(this.squares.get(new Point(x, y + 1)) == null && this.squares.get(new Point(x, y - 1)) == null))){
+			return new Point(x, y);
+		}
+		else{
+			return findNextOrigin();
+		}
+	}
+
+	public void addRandomWord() {
+		Point origin = findNextOrigin();
+		if (origin == null){
+			System.out.println("NO CANDIDATE ORIGIN FOUND");
+			this.display();
+		}
+		else{
+			boolean isHorizontal = (this.squares.get(new Point(origin.x + 1, origin.y)) == null);
+			Entry candidate = findWord(origin, origin, isHorizontal);
+			if (candidate == null){
+				this.badOrigins.add(origin);
+				addRandomWord();
+			}
+			else{
+				this.addEntry(candidate);
+			}
+		}
+	}
 	
-	public static ArrayList<Clue> checkDifferent(ArrayList<Clue> wordPairs) {
-		ArrayList<Clue> diffWords = new ArrayList<Clue>();
+	public static ArrayList<WordGroup> checkDifferent(ArrayList<WordGroup> wordPairs) {
+		ArrayList<WordGroup> diffWords = new ArrayList<WordGroup>();
 		wordloop:
-		for (Clue w : wordPairs){
+		for (WordGroup w : wordPairs){
 			int num_diff_letters = 0;
 			for (int i = 0; i < w.words.get(0).length(); i++){
 				if (w.words.get(0).charAt(i) != w.words.get(1).charAt(i)){
@@ -439,158 +496,205 @@ public class Crossword {
 		
 	}
 
-	private void buildIndex() {
-		for (Clue clue:this.dictionary){
-			buildClueIndex(clue);
+	public boolean addDoubleWord() {
+		boolean isHorizontal;
+		int xStart = (xMin % 2 == 0) ? xMin : xMin + 1;
+		int yStart = (yMin % 2 == 0) ? yMin : yMin + 1;
+		for (int y = yStart; y <= yMax; y += 2){
+			for (int x = xStart; x <= xMax; x += 2){
+				if (squares.get(new Point(x, y)) != null){
+					if (squares.get(new Point(x+1, y)) == null && squares.get(new Point(x-1, y)) == null){
+						isHorizontal = true;
+						for (int nearest = 2; x + nearest <= xMax && x - nearest >= xMin; nearest++){
+							if (squares.get(new Point(x+nearest, y)) != null){
+								Entry e = findWord(new Point(x, y), new Point(x+nearest, y), isHorizontal);
+								if (e != null){
+									this.addEntry(e);
+									return true;
+								}
+							}
+							if (squares.get(new Point(x-nearest, y)) != null){
+								Entry e = findWord(new Point(x, y), new Point(x-nearest, y), isHorizontal);
+								if (e != null){
+									this.addEntry(e);
+									return true;
+								}
+							}
+							
+						}
+					}
+					if (squares.get(new Point(x, y+1)) == null && squares.get(new Point(x, y-1)) == null){
+						isHorizontal = false;
+						for (int nearest = 2; y + nearest <= yMax && y - nearest >= yMin; nearest++){
+							if (squares.get(new Point(x, y+nearest)) != null){
+								Entry e = findWord(new Point(x, y), new Point(x, y+nearest), isHorizontal);
+								if (e != null){
+									this.addEntry(e);
+									return true;
+								}
+							}
+							if (squares.get(new Point(x, y-nearest)) != null){
+								Entry e = findWord(new Point(x, y), new Point(x, y-nearest), isHorizontal);
+								if (e != null){
+									this.addEntry(e);
+									return true;
+								}
+							}
+							
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	public Entry findWord(Point origin, Point secondPoint, boolean isHorizontal) {
+		String firstLetterPair = this.squares.get(origin);
+		String secondLetterPair = this.squares.get(secondPoint);
+		//for each wordPair in dict
+		int end;
+		end = new Double(Math.random()*this.dictionary.size()).intValue();
+		wordloop:
+		for (int i = end; i < this.dictionary.size(); i++){
+			WordGroup w = this.dictionary.get(i);
+			//for each letterPair in the wordPair
+			for (int offset = 0; offset < w.words.get(0).length(); offset++){
+				//check if letterPair matches origin's letterpair
+				if (w.words.get(0).charAt(offset) == firstLetterPair.charAt(0) && w.words.get(1).charAt(offset) == firstLetterPair.charAt(1)){
+					//find and check intersection points
+					if (isHorizontal){
+						//short circuit if secondLetterPair doesn't match
+						if (offset + secondPoint.x - origin.x >= 0 && offset + secondPoint.x - origin.x < w.words.get(0).length() && 
+								w.words.get(0).charAt(offset + secondPoint.x - origin.x) == secondLetterPair.charAt(0) && 
+								w.words.get(1).charAt(offset + secondPoint.x - origin.x) == secondLetterPair.charAt(1)){
+							int k = 0;
+							if (this.squares.get(new Point(origin.x - offset - 1, origin.y)) == null && this.squares.get(new Point(origin.x - offset + w.words.get(0).length(), origin.y)) == null){
+								for (int j = origin.x - offset; j <= origin.x - offset + w.words.get(0).length() - 1; j++){
+									//all intersections must have same letterPair
+									ArrayList<Point> row = rows.get(origin.y);
+									if (this.squares.get(new Point(j, origin.y)) == null && (this.squares.get(new Point(j, origin.y + 1)) != null || this.squares.get(new Point(j, origin.y - 1)) != null)){
+										continue wordloop;
+									}
+									if (row.contains(new Point(j, origin.y)) == true && !squares.get(new Point(j, origin.y)).equals("" + w.words.get(0).charAt(k) + w.words.get(1).charAt(k))){
+										continue wordloop;
+									}
+									k++;
+								}
+								if (confirmWord(w) == null){
+									continue wordloop;
+								}
+								return new Entry(w, origin, offset, isHorizontal);
+							}
+						}
+					}
+					else {
+//						//short circuit if secondLetterPair doesn't match
+						if (offset + secondPoint.y - origin.y >= 0 && offset + secondPoint.y - origin.y < w.words.get(0).length() && w.words.get(0).charAt(offset + secondPoint.y - origin.y) == secondLetterPair.charAt(0) && w.words.get(1).charAt(offset + secondPoint.y - origin.y) == secondLetterPair.charAt(1)){
+							//k is position in word
+							int k = 0;
+							//j is position in row - both refer to same letter/location
+							if (this.squares.get(new Point(origin.x, origin.y - offset - 1)) == null && this.squares.get(new Point(origin.x, origin.y - offset + w.words.get(0).length())) == null){
+								for (int j = origin.y - offset; j <= origin.y - offset + w.words.get(0).length() - 1; j++){
+									//all intersections must have same letterPair
+									ArrayList<Point> column = columns.get(origin.x);
+									if (this.squares.get(new Point(origin.x, j)) == null && (this.squares.get(new Point(origin.x + 1, j)) != null || this.squares.get(new Point(origin.x - 1, j)) != null)){
+										continue wordloop;
+									}
+									if (column.contains(new Point(origin.x, j)) == true && !squares.get(new Point(origin.x, j)).equals("" + w.words.get(0).charAt(k) + w.words.get(1).charAt(k))){
+										continue wordloop;
+									}
+									k++;
+								}
+								if (confirmWord(w) == null){
+									continue wordloop;
+								}
+								return new Entry(w, origin, offset, isHorizontal);
+							}
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	public static void generateMany(String[] args) throws IOException, ClassNotFoundException {
+		double sum = 0;
+		double best = 99;
+		int numExported = 0;
+		for(int j=0; j<1000; j++){
+			FileInputStream fileIn = new FileInputStream("/tmp/employee.ser");
+	        ObjectInputStream in = new ObjectInputStream(fileIn);
+	        ArrayList<WordGroup> wordPairs = (ArrayList<WordGroup>) in.readObject();
+	        in.close();
+	        fileIn.close();
+			Crossword cw = new Crossword(wordPairs);
+			
+			WordGroup initialWord = wordPairs.get((int)(Math.random()*wordPairs.size()));
+			cw.addEntry(new Entry(initialWord, new Point(0, 0), 0, true));
+			double numSingle = 1;
+			int numDouble = 0;
+			while(numDouble < 10){
+				boolean addedDouble = cw.addDoubleWord();
+				if (addedDouble){
+					numDouble++;
+	//				System.out.println("s: " + numSingle + ", d: " + numDouble);
+				}
+				else{
+					cw.addRandomWord();
+					numSingle++;
+	//				System.out.println("s: " + numSingle + ", d: " + numDouble);
+				}
+				if (numSingle + numDouble > 100){
+					break;
+				}
+			}
+			double ratio = numSingle/numDouble;
+			System.out.println("Final ratio: " + ratio);
+			sum += ratio;
+			best = (ratio < best) ? ratio : best;
+			System.out.println("Best ratio: " + best);
+			System.out.println("Average ratio: " + sum/j+1);
+			System.out.println("Num attempts: " + 1+j);
+			System.out.println("Num exported: " + numExported);
+			System.out.println();
+			if (ratio < 4.0){
+				cw.display();
+				cw.export();
+				numExported++;
+			}
+			
+	//		cw.display();
+	//		cw.export();
 		}
 	}
+	
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
 
-	private void buildClueIndex(Clue clue) {
-            //creates leaf
-            String fullName = "*" + clue.words.get(0) + "*/*" + clue.words.get(1) + "*";
-            LetterGroup leaf = new LetterGroup(fullName, clue);
-            this.index.put(fullName, leaf);
+            ArrayList<WordGroup> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
             
-            //create tree
-            build_tree(leaf);
-            		
+//            FileOutputStream fileOut;
+//            fileOut = new FileOutputStream("/home/jamie/Downloads/wordPairs.ser");
+//            ObjectOutputStream out = new ObjectOutputStream(fileOut);
+//            out.writeObject(wordPairs);
+//            out.close();
+//            fileOut.close();
+//            FileInputStream fileIn = new FileInputStream("/home/jamie/Downloads/wordPairs.ser");
+//            ObjectInputStream in = new ObjectInputStream(fileIn);
+//            ArrayList<WordGroup> wordPairs = (ArrayList<WordGroup>) in.readObject();
+//            in.close();
+//            fileIn.close();
+        
+            Crossword cw = new Crossword(wordPairs);
+
+            WordGroup initialWord = wordPairs.get((int)(Math.random()*wordPairs.size()));
+            cw.addEntry(new Entry(initialWord, new Point(0, 0), 0, true));
+            while(true){
+                boolean addedDouble = cw.addDoubleWord();
+                if (!addedDouble){
+                        cw.addRandomWord();
+                }
+            }
 	}
-
-    private void build_tree(LetterGroup child) {
-        if (child.name.length() ==3){
-            return;
-        }
-        
-        String[] parts = child.name.split("/");
-        String leftParentName = parts[0].substring(0, parts[0].length() - 1) 
-                + "/" + parts[1].substring(0, parts[1].length() - 1);
-        String rightParentName = parts[0].substring(1, parts[0].length()) 
-                + "/" + parts[1].substring(1, parts[1].length());
-        if (this.index.get(leftParentName) == null){
-            LetterGroup leftParent = new LetterGroup(leftParentName, child.clue);
-            leftParent.rightKids.add(child);
-            this.index.put(leftParent.name, leftParent);
-        }
-        else{
-            this.index.get(leftParentName).rightKids.add(child);
-        }
-        build_tree(this.index.get(leftParentName));
-        if (this.index.get(rightParentName) == null){
-            LetterGroup rightParent = new LetterGroup(rightParentName, child.clue);
-            rightParent.leftKids.add(child);
-            this.index.put(rightParentName, rightParent);
-        }
-        else{
-            this.index.get(rightParentName).leftKids.add(child);
-        }
-        build_tree(this.index.get(rightParentName));
-        
-        
-    }
-
-    private void buildPuzzle(Puzzle puzzle) {
-        
-        if (puzzle.rightWord.numLetters() > 5 &&
-                puzzle.leftWord.clue != puzzle.rightWord.clue){
-            this.puzzles.add(puzzle);
-        }
-        
-        //add to left word (-2 b/c of starting *.../*)
-        if (puzzle.leftWord.name.length() - 2 == puzzle.rightWord.name.length()){
-            for (LetterGroup child: puzzle.leftWord.rightKids){
-                buildPuzzle(new Puzzle(child, puzzle.rightWord));
-            }
-        }
-        
-        //add to right word
-        else{
-            int row = puzzle.leftWord.numLetters() - 2;
-            HashSet<String> validExtensions = new HashSet<>();
-            for (LetterGroup extension: this.index.get(puzzle.leftWord.getLetterPairAt(row, false, true)).rightKids){
-                String[] parts = extension.name.split("/");
-                if (row % 2 == 1){
-                    if (this.index.get(parts[0] + "*/" + parts[1] + "*") != null){
-                        validExtensions.add(extension.getLetterPairAt(extension.numLetters() - 1, true, false));                
-                    }
-                }
-                else{
-                    if (this.index.get("*" + parts[0] + "/*" + parts[1]) != null){
-                        validExtensions.add(extension.getLetterPairAt(extension.numLetters() - 1, true, false));                
-                    }
-                }
-            }
-            for (LetterGroup child: puzzle.rightWord.rightKids){
-                String letterPair = child.getLetterPairAt(row, true, false); 
-                if (validExtensions.contains(letterPair)){
-                    buildPuzzle(new Puzzle(puzzle.leftWord, child));
-                }
-            }
-        }
-    }
-    
-
-    private void clear() {
-        this.squares = new HashMap<Point, String>();
-        this.rows = new HashMap<Integer, ArrayList<Point>>();
-        this.columns = new HashMap<Integer, ArrayList<Point>>();
-        this.entries = new ArrayList<Entry>();
-        this.xMin = 0;
-        this.xMax = 0;
-        this.yMin = 0;
-        this.yMax = 0;
-    }
-    
-    private void completePuzzle(Puzzle puzzle) {
-        this.clear();
-        this.addEntry(new Entry(puzzle.leftWord.clue, new Point(0, 0), 0, false));
-        this.addEntry(new Entry(puzzle.rightWord.clue, new Point(1, 0), getOffset(puzzle.rightWord), false));
-        for (int row = 0; row < puzzle.leftWord.numLetters(); row++){
-            if (this.squares.containsKey(new Point(1, row))){
-                String leftLetterPair = this.squares.get(new Point (0, row));
-                String righttLetterPair = this.squares.get(new Point (1, row));
-                if (row % 2 == 0){
-                    LetterGroup wordStub = this.index.get("*" + leftLetterPair.charAt(0) +
-                            righttLetterPair.charAt(0) +
-                            "/*" + leftLetterPair.charAt(1) + righttLetterPair.charAt(1));
-                            
-                    this.addEntry(new Entry(wordStub.clue, new Point(0, row), 0, true));
-
-                }
-                else{
-                    LetterGroup wordStub = this.index.get("" + leftLetterPair.charAt(0) +
-                            righttLetterPair.charAt(0) + "*/" + 
-                            leftLetterPair.charAt(1) + righttLetterPair.charAt(1) + "*");
-                    this.addEntry(new Entry(wordStub.clue, new Point(1, row), wordStub.clue.words.get(0).length() - 1, true));
-                }        
-            }
-        }
-        this.display();
-        
-    }
-
-    private int getOffset(LetterGroup rightWord) {
-        String[] parts = rightWord.name.replace("*", "").split("/");
-        return rightWord.clue.words.get(0).indexOf(parts[0]);
-    }
-    
-    public static void main(String[] args) throws IOException, ClassNotFoundException, Exception {
-        ArrayList<Clue> wordPairs = checkDifferent(getWordPairs(sanitize(getEqualLengthDict())));
-        Crossword cw = new Crossword(wordPairs);
-        cw.buildIndex();
-        for (LetterGroup child: cw.index.get("*/*").rightKids){
-            for (LetterGroup grandchild: child.rightKids){
-                cw.buildPuzzle(new Puzzle(grandchild, cw.index.get(grandchild.getLetterPairAt(1, false, true))));
-            }
-        }
-        System.out.println(cw.puzzles.size());
-        for (Puzzle p : cw.puzzles){
-//            System.out.println(p.leftWord.name);
-//            System.out.println(p.rightWord.name);
-//            System.out.println();
-            cw.completePuzzle(p);
-        }
-        System.out.println(cw.puzzles.size());
-    } 
-
-    
 }

@@ -1,18 +1,29 @@
 package dictionary;
 
 
-import java.util.HashSet;
+import java.io.File;
+import java.io.IOException;
+import java.util.Date;
+
 
 
 public class Test {
 
-	public static void main(String[] args) {
-	
-            String test = "0123456";
-            String sub = "234";
-            System.out.println("test.indexOf(sub): " + test.indexOf(sub));
-            
-		
-	}
+public static void main(String[] args) {
+
+	try {
+		 
+	      File file = new File("/home/jamie/Documents/" + new Date().getTime() + "-Crossword" + 1 + ".txt");
 	      
+	      if (file.createNewFile()){
+	        System.out.println("File is created!");
+	      }else{
+	        System.out.println("File already exists.");
+	      }
+	      
+  	} catch (IOException e) {
+	      e.printStackTrace();
+	}
+}
+
 }
