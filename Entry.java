@@ -10,12 +10,12 @@ public class Entry {
 	int offset;
 	Point origin;
 
-	public Entry(Clue w, Point p, int o, boolean isHorizontal){
-		this.wordGroup = w;
-		this.point = p;
-		this.offset = o;
+	public Entry(Clue wordGroup, Point point, int offset, boolean isHorizontal){
+		this.wordGroup = wordGroup;
+		this.point = point;
+		this.offset = offset;
 		this.isHorizontal = isHorizontal;
-		this.origin = getOrigin(p, o, isHorizontal);
+		this.origin = getOrigin(point, offset, isHorizontal);
 		
 	}
 

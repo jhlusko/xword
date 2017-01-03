@@ -13,19 +13,19 @@ import java.util.ArrayList;
  */
 class Puzzle {
     
-    public ArrayList<LetterGroup> verticalWords;
-    public ArrayList<LetterGroup> horizontalWords;
+    public ArrayList<String> verticalWords;
+    public ArrayList<String> horizontalWords;
 
     
-    public Puzzle(ArrayList<LetterGroup> verticalWords, ArrayList<LetterGroup> horizontalWords){
+    public Puzzle(ArrayList<String> verticalWords, ArrayList<String> horizontalWords){
         this.verticalWords = verticalWords;
         this.horizontalWords = horizontalWords;
         
     }
 
     void printPuzzle() {
-        for (LetterGroup word: this.horizontalWords){
-            System.out.println(word.name);
+        for (String word: this.horizontalWords){
+            System.out.println(word);
         }
         System.out.println();
     }

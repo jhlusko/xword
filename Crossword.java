@@ -51,9 +51,11 @@ public class Crossword {
 	int xMax;
 	int yMin;
 	int yMax;
+        int count;
 	ArrayList<Clue> dictionary;
 	ArrayList<Point>badOrigins;
 	Scanner scanner;
+	
 
         public Crossword(ArrayList<Clue> wordPairs){
 		this.dictionary = wordPairs;
@@ -67,6 +69,7 @@ public class Crossword {
 		this.xMax = 0;
 		this.yMin = 0;
 		this.yMax = 0;
+                this.count = 0;
 		this.badOrigins = new ArrayList<Point>();
 		this.scanner = new Scanner (System.in);
 	}
@@ -296,6 +299,19 @@ public class Crossword {
 		printClues("horizontal");
 		System.out.println("Down:");
 		printClues("vertical");
+                
+                System.out.println("Answers for Across:");
+		for (Entry e : entries){
+                    if (e.isHorizontal){
+                        System.out.println(e.wordGroup.words.get(0) + "/" + e.wordGroup.words.get(1));
+                    }
+                }
+                System.out.println("Answers for Down:");
+		for (Entry e : entries){
+                    if (!e.isHorizontal){
+                        System.out.println(e.wordGroup.words.get(0) + "/" + e.wordGroup.words.get(1));
+                    }
+                }
 		
 		
 	}
@@ -490,42 +506,75 @@ public class Crossword {
 
     void buildPuzzle(Puzzle p) {
         
-        if (p.horizontalWords.size() > 3){
-            p.printPuzzle();
-        }
-        
-        int column;
-        int row = p.horizontalWords.size() - 1;
-        for (column = 0; column < p.verticalWords.size() ; column++){
-            if (p.verticalWords.get(column).numLetters() < p.horizontalWords.size() + 1){ //+1 for the first column of all ****
-                row = p.verticalWords.get(column).numLetters() - 1;
-                break;
+
+        for (int i = 0; i < p.horizontalWords.size(); i++){
+            if (i > 0){
+                if (p.horizontalWords.get(i).length() > p.horizontalWords.get(i - 1).length()){
+                    return;
+                }
             }
         }
-        if (column < p.verticalWords.size()){
-            HashSet<String> verticalOptions = p.verticalWords.get(column).getRightLetterPairs();
-            HashSet<String> horizontalOptions = p.horizontalWords.get(row).getRightLetterPairs();
-            verticalOptions.retainAll(horizontalOptions);
-            for (String letterPair: verticalOptions){
-                if (letterPair.equals("*/*")){
-                    p.printPuzzle();
+        
+        
+        
+        if (p.verticalWords.size() == 3 ){
+            this.count++;
+            if (count % 1000 == 0){
+                System.out.println(count);
+            }
+        }
+        
+        if (p.verticalWords.size() > 3 ){
+            completePuzzle(p);
+        }
+        
+        
+        int numRows = p.horizontalWords.size();
+        int numColumns = p.verticalWords.size();
+        String lastVerticalWord = p.verticalWords.get(numColumns - 1);
+        int lastVerticalLength = (lastVerticalWord.length() - 1)/2;
+        String lastHorizontalWord = p.horizontalWords.get(numRows - 1);
+        int hLength = (lastHorizontalWord.length() - 1)/2;
+        
+        if (numRows == numColumns){
+            //complete last row
+            if (hLength < numColumns + 1){
+                fillSquare(p, hLength - 1, numRows - 1);
+            }
+            
+            //add new column
+            else{
+                if (p.verticalWords.size() % 2 == 0){
+                    p.verticalWords.add("*/*");
                 }
-                ArrayList<LetterGroup> vertCopy = new ArrayList<LetterGroup>(p.verticalWords);
-                ArrayList<LetterGroup> horCopy = new ArrayList<LetterGroup>(p.horizontalWords);
-                vertCopy.set(column, p.verticalWords.get(column).extend(letterPair));
-                horCopy.set(row, p.horizontalWords.get(row).extend(letterPair));
-                buildPuzzle(new Puzzle(vertCopy, horCopy));
+                else {
+                    p.verticalWords.add("-/-");
+                }
+                buildPuzzle(p);
             }
         }
         else{
-            if (p.horizontalWords.size() == p.verticalWords.size()){
-                p.verticalWords.add(this.index.get("*/*"));
-                buildPuzzle(p);
+            //complete last column
+            String penultimateVerticalWord = p.verticalWords.get(numColumns - 2);
+            int penultimateVerticalLength = (penultimateVerticalWord.length() - 1)/2;
+            if (lastVerticalLength < numRows + 1 && penultimateVerticalLength == numRows + 1){
+                fillSquare(p, numColumns - 1, lastVerticalLength - 1);
             }
+
+            //complete last row
+            if (hLength < numColumns + 1){
+                fillSquare(p, hLength - 1, numRows - 1);
+            }
+            //add new row
             else{
-                p.horizontalWords.add(this.index.get("*/*"));
+                    if (p.horizontalWords.size() % 2 == 0){
+                        p.horizontalWords.add("*/*");
+                    }
+                    else {
+                        p.horizontalWords.add("-/-");
+                    }
                 buildPuzzle(p);
-            }
+            }                   
         }
     }
     
@@ -548,22 +597,99 @@ public class Crossword {
         cw.buildIndex();
 //        LetterGroup test = cw.index.get("*I/*O");
         for (LetterGroup child: cw.index.get("*/*").rightKids){
-            ArrayList<LetterGroup> initialLetterGroup = new ArrayList<LetterGroup>();
-            initialLetterGroup.add(child);
-            cw.buildPuzzle(new Puzzle(new ArrayList<LetterGroup>(initialLetterGroup), new ArrayList<LetterGroup>(initialLetterGroup)));
+            for (LetterGroup firstGrandChild: child.rightKids){
+                for (LetterGroup secondGrandChild: child.rightKids){
+                    if (firstGrandChild != secondGrandChild){
+                        ArrayList<String> horizontalWords = new ArrayList<String>();
+                        horizontalWords.add(firstGrandChild.name);
+                        horizontalWords.add("-" + secondGrandChild.name.charAt(2) + "/-" + secondGrandChild.name.charAt(6));
+                        ArrayList<String> verticalWords = new ArrayList<String>();
+                        verticalWords.add(secondGrandChild.name);
+                        verticalWords.add("-" + firstGrandChild.name.charAt(2) + "/-" + firstGrandChild.name.charAt(6));
+                        cw.buildPuzzle(new Puzzle(verticalWords, horizontalWords));
+                    }
+                }
+            }
         }
-        System.out.println(cw.puzzles.size());
-        for (Puzzle p : cw.puzzles){
-//            System.out.println(p.leftWord.name);
-//            System.out.println(p.rightWord.name);
-//            System.out.println();
-            cw.completePuzzle(p);
-        }
+        
         System.out.println(cw.puzzles.size());
     } 
 
     void completePuzzle(Puzzle p) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        this.clear();
+        for (int i = 0; i < p.horizontalWords.size(); i++){
+            if (i % 2 == 0){
+                this.addEntry(new Entry(this.index.get(p.horizontalWords.get(i)).clue, new Point (0, i), 0, true));
+            }
+            else{
+                String stub = p.horizontalWords.get(i).replace("-", "");
+                if (stub.equals("/")){
+                    return;
+                }
+                String parts[] = stub.split("/");
+                LetterGroup word = this.index.get(parts[0] + "*/" + parts[1] + "*");
+                if(word == null){
+                    return;
+                }
+                int offset = word.clue.words.get(0).indexOf(parts[0]);
+                this.addEntry(new Entry(word.clue, new Point (0, i), offset, true));                    
+                
+            }
+        }
+        for (int i = 0; i < p.verticalWords.size(); i++){
+            if (i % 2 == 0){
+                this.addEntry(new Entry(this.index.get(p.verticalWords.get(i)).clue, new Point (i, 0), 0, false));
+            }
+            else{
+                String stub = p.verticalWords.get(i).replace("-", "");
+                if (stub.equals("/")){
+                    return;
+                }
+                String parts[] = stub.split("/");
+                LetterGroup word = this.index.get(parts[0] + "*/" + parts[1] + "*");
+                if(word == null){
+                    return;
+                }
+                int offset = word.clue.words.get(0).indexOf(parts[0]);
+                this.addEntry(new Entry(word.clue, new Point (i, 0), offset, false));
+            }
+        }
+        this.display();
+        System.out.println();
+    }
+
+    private String extendWord(String word, String letterPair) {
+        String[] parts = word.split("/");
+        return parts[0] + letterPair.charAt(0) + "/" + parts[1] + letterPair.charAt(2);
+    }
+
+    private void fillSquare(Puzzle p, int column, int row) {
+        String verticalWord = p.verticalWords.get(column).replace("-", "");
+        String horizontalWord = p.horizontalWords.get(row).replace("-", "");
+        HashSet<String> intersection = new HashSet<String>();
+        if (verticalWord.equals("/")){
+            intersection = this.index.get(horizontalWord).getRightLetterPairs();
+        }
+        else if (horizontalWord.equals("/")){
+            intersection = this.index.get(verticalWord).getRightLetterPairs();
+        }
+        else{
+            HashSet<String> verticalOptions = this.index.get(verticalWord).getRightLetterPairs();
+            HashSet<String> horizontalOptions = this.index.get(horizontalWord).getRightLetterPairs();
+            verticalOptions.retainAll(horizontalOptions);
+            intersection = verticalOptions;
+        }
+
+        for (String letterPair: intersection){
+            ArrayList<String> vertCopy = new ArrayList<String>(p.verticalWords);
+            ArrayList<String> horCopy = new ArrayList<String>(p.horizontalWords);
+            vertCopy.set(column, extendWord(p.verticalWords.get(column), letterPair));
+            horCopy.set(row, extendWord(p.horizontalWords.get(row), letterPair));
+            if (letterPair.equals("*/*")){
+//                completePuzzle(p);
+            }
+            buildPuzzle(new Puzzle(vertCopy, horCopy));
+        }
     }
 
     

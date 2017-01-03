@@ -67,15 +67,4 @@ public class LetterGroup {
         return parts[0].length();
     }
 
-    public LetterGroup extend(String letterPair) {
-        for (LetterGroup child: this.rightKids){
-            if (child.getLetterPairAt(child.numLetters() - 1, true, true).equals(letterPair)){
-                return child;
-            }
-        }
-        //TODO: replace null with exception handling
-        return null;
-    }
-
- 
 }
