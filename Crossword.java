@@ -341,7 +341,7 @@ public class Crossword {
 			BufferedWriter writer;
 			try {
 //				File file = new File("/home/jamie/Downloads/xwords.xml");
-				String title = num + "-Double-Crossword-" + time;
+				String title = num + "-Square-Crossword-" + time;
 				File file = new File("/home/jamie/Downloads/" + title + ".xml");
 				writer = new BufferedWriter(new FileWriter(file));
 				writer.write("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n");
@@ -450,8 +450,6 @@ public class Crossword {
 		out.writeObject(this.dictionary);
 		out.close();
 		fileOut.close();
-		this.display();
-		System.exit(0);
 		
 	}
 
@@ -654,8 +652,23 @@ public class Crossword {
                 this.addEntry(new Entry(word.clue, new Point (i, 0), offset, false));
             }
         }
+        confirmExport();
+    }
+    
+    public void confirmExport() {
         this.display();
-        System.out.println();
+        System.out.println("Export crossword? (y/n)");
+        String input = this.scanner.next();
+        if (input.equals("y")) {
+            System.out.println("Exporting crossword!");
+            try {
+                this.export();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("??? your input: " + input);
+        }
     }
 
     private String extendWord(String word, String letterPair) {
