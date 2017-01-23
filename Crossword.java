@@ -296,6 +296,10 @@ public class Crossword {
 		printClues("horizontal");
 		System.out.println("Down:");
 		printClues("vertical");
+                
+                for (Entry e : this.entries){
+                    System.out.println(e.wordGroup.words.get(0) + "/" + e.wordGroup.words.get(1));
+                }
 		
 		
 	}
@@ -325,7 +329,7 @@ public class Crossword {
 			BufferedWriter writer;
 			try {
 //				File file = new File("/home/jamie/Downloads/xwords.xml");
-				String title = num + "-Double-Crossword-" + time;
+				String title = num + "-Parallel-Crossword-" + time;
 				File file = new File("/home/jamie/Downloads/" + title + ".xml");
 				writer = new BufferedWriter(new FileWriter(file));
 				writer.write("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n");
@@ -435,7 +439,6 @@ public class Crossword {
 		out.close();
 		fileOut.close();
 		this.display();
-		System.exit(0);
 		
 	}
 
@@ -564,10 +567,26 @@ public class Crossword {
                 }        
             }
         }
-        this.display();
+        confirmExport();
         
     }
 
+    public void confirmExport() {
+        this.display();
+        System.out.println("Export crossword? (y/n)");
+        String input = this.scanner.next();
+        if (input.equals("y")) {
+            System.out.println("Exporting crossword!");
+            try {
+                this.export();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("??? your input: " + input);
+        }
+    }
+    
     private int getOffset(LetterGroup rightWord) {
         String[] parts = rightWord.name.replace("*", "").split("/");
         return rightWord.clue.words.get(0).indexOf(parts[0]);
