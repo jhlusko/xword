@@ -20,7 +20,7 @@ An interactive sample puzzle can be solved at the following URLs:<br/>
 [Puzzle 0](http://crosswordcomposer.com/?author=Jamie+Hlusko&title=0-Double-Crossword-1452827001720&solve=true)<br/>
 [Puzzle 1](http://crosswordcomposer.com/?author=Jamie+Hlusko&title=1-Double-Crossword-1452827001720&solve=true)
 
-Note: I am not affiliated with crosswordcomposer.com. This repository will just create the raw XML files that a reader like http://crosswordcomposer.com can display.
+Note: I am not affiliated with http://crosswordcomposer.com. This repository will just create the raw XML files that a reader like http://crosswordcomposer.com can display.
 
 For each of the branches/puzzle types the default method is to create whole puzzles which the user can then review and either reject causing the program to generate a new puzzle, or export the puzzle to XML.
 
